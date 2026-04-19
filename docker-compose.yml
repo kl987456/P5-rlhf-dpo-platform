@@ -1,0 +1,88 @@
+version: "3.9"
+
+x-common-env: &common-env
+  env_file: .env
+  environment:
+    DATABASE_URL: sqlite:////data/rlhf.db
+    CELERY_BROKER_URL: redis://redis:6379/0
+    CELERY_RESULT_BACKEND: redis://redis:6379/1
+    OUTPUT_DIR: /data/checkpoints
+
+services:
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: api
+    restart: unless-stopped
+    <<: *common-env
+    ports:
+      - "8004:8004"
+    volumes:
+      - app_data:/data
+      - ./api:/app/api
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8004/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: worker
+    restart: unless-stopped
+    <<: *common-env
+    volumes:
+      - app_data:/data
+      - ./training:/app/training
+      - ./worker:/app/worker
+    depends_on:
+      redis:
+        condition: service_healthy
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+  serving:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: serving
+    restart: unless-stopped
+    <<: *common-env
+    ports:
+      - "8080:8080"
+    volumes:
+      - app_data:/data
+      - ./serving:/app/serving
+    depends_on:
+      - api
+    profiles:
+      - serving
+
+volumes:
+  redis_data:
+  app_data:
