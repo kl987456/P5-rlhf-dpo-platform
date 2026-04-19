@@ -1,0 +1,43 @@
+# Secrets — never commit
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+.venv/
+venv/
+env/
+
+# Test artefacts
+.pytest_cache/
+*.db
+test_*.db
+htmlcov/
+.coverage
+coverage.xml
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# ML models / large files
+*.bin
+*.safetensors
+*.pt
+*.pth
+checkpoints/
+models/
+eval_results/
